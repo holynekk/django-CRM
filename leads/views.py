@@ -5,6 +5,7 @@ from django.http import HttpResponse
 from django.views.generic import TemplateView, ListView, DetailView, CreateView, UpdateView, DeleteView
 from .models import Lead, Agent
 from .forms import LeadForm, LeadModelForm, CustomCreationForm
+from agents.mixins import OrganizorAndLoginRequiredMixin
 
 
 # Create your views here.
@@ -25,8 +26,16 @@ def landing_page(request):
 
 class LeadListView(LoginRequiredMixin, ListView):
     template_name = "leads/lead_list.html"
-    queryset = Lead.objects.all()
     context_object_name = "leads"
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_organizor:
+            queryset = Lead.objects.filter(organization=user.userprofile)
+        else:
+            queryset = Lead.objects.filter(organization=user.agent.organization)  
+            queryset = queryset.filter(agent__user=user)
+        return queryset
 
 def lead_list(request):
     leads = Lead.objects.all()
@@ -47,7 +56,7 @@ def lead_detail(request, pk):
     }
     return render(request, "leads/lead_detail.html", context)
 
-class LeadCreateView(LoginRequiredMixin, CreateView):
+class LeadCreateView(OrganizorAndLoginRequiredMixin, CreateView):
     template_name = "leads/lead_create.html"
     form_class = LeadModelForm
     def get_success_url(self):
@@ -73,7 +82,7 @@ def lead_create(request):
     }
     return render(request, "leads/lead_create.html", context)
 
-class LeadUpdateView(LoginRequiredMixin, UpdateView):
+class LeadUpdateView(OrganizorAndLoginRequiredMixin, UpdateView):
     template_name = "leads/lead_update.html"
     queryset = Lead.objects.all()
     form_class = LeadModelForm
@@ -94,7 +103,7 @@ def lead_update(request, pk):
     }
     return render(request, "leads/lead_update.html", context)
 
-class LeadDeleteView(LoginRequiredMixin, DeleteView):
+class LeadDeleteView(OrganizorAndLoginRequiredMixin, DeleteView):
     template_name = "leads/lead_delete.html"
     queryset = Lead.objects.all()
     def get_success_url(self):
